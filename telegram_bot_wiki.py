@@ -1,9 +1,8 @@
 import telegram
 import time
 import datetime
-from secret_information import my_token, chat_ids, mysql_password_wordpress, mysql_password_wiki, sitename
+from secret_information import my_token, chat_ids, mysql_password_wiki, sitename
 from mysql.connector import connect, Error
-import requests
 
 
 time_sleep = 30 #seconds
