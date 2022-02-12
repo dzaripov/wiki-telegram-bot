@@ -71,7 +71,7 @@ def is_new_wiki(date): #date
         return False
 
 
-def insert_posted_activity(posted_id, post_name):
+def insert_posted_activity(posted_id, post_name, cursor):
     sql = "INSERT INTO recentchangesposted (posted_id, post_name) VALUES (%s, %s)"
     val = (posted_id, post_name)
     cursor.execute(sql, val)
@@ -120,7 +120,7 @@ def post_if_new_activity_wiki():
                         for chat_id in chat_ids:
                             send(msg, chat_id)
 
-                        insert_posted_activity(rc_id, rc_title)
+                        insert_posted_activity(rc_id, rc_title, cursor)
 
     except Error as e:
         print(e)
