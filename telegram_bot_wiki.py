@@ -188,6 +188,49 @@ def get_activities():
         print(e)
 
 
+
+def is_db_created():
+
+    with connect(
+            host="localhost",
+            user="wiki",
+            password=mysql_password_wiki,
+            database="wikidb",
+        ) as connection:
+
+        with connection.cursor() as cursor:
+            cursor.execute('SHOW TABLES')
+
+        for name in cursor:
+            if name == 'recentchangesposted':
+                return True
+                
+        return False
+
+
+def create_posted_activity_db():
+
+    if is_db_created():
+
+        print('DB is already created!')
+
+    else:
+
+        with connect(
+            host="localhost",
+            user="wiki",
+            password=mysql_password_wiki,
+            database="wikidb",
+        ) as connection:
+
+            with connection.cursor() as cursor:
+                cursor.execute("CREATE TABLE recentchangesposted (posted_id int, post_name VARCHAR(255))")
+
+        print('DB is created!')
+
+
+
+
 #main
 def main():
     while True:
