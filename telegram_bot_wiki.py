@@ -5,7 +5,7 @@ from secret_information import my_token, chat_ids, mysql_password_wiki, sitename
 from mysql.connector import connect, Error
 
 
-time_sleep = 5 #seconds
+time_sleep = 30 #seconds
 
 
 def bold(text):
