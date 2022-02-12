@@ -71,6 +71,12 @@ def is_new_wiki(date): #date
         return False
 
 
+def insert_posted_activity(posted_id, post_name):
+    sql = "INSERT INTO recentchangesposted (posted_id, post_name) VALUES (%s, %s)"
+    val = (posted_id, post_name)
+    cursor.execute(sql, val)
+
+
 def post_if_new_activity_wiki():
     try:
         with connect(
@@ -113,6 +119,8 @@ def post_if_new_activity_wiki():
 
                         for chat_id in chat_ids:
                             send(msg, chat_id)
+
+                        insert_posted_activity(rc_id, rc_title)
 
     except Error as e:
         print(e)
@@ -207,7 +215,7 @@ def is_db_created():
         for i in range(len(tables)):
             if tables[i][0] == 'recentchangesposted':
                 return True
-                
+
         return False
 
 
