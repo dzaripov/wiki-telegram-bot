@@ -96,6 +96,7 @@ def post_if_new_activity_wiki():
                 
                 for i in activity_range:
                     rc_title             = act[i][0].decode('utf-8')
+                    rc_title_undecoded   = act[i][0]
                     rc_minor             = act[i][1]
                     rc_new               = act[i][2]
                     rc_comment_id        = act[i][3]
@@ -115,7 +116,7 @@ def post_if_new_activity_wiki():
                             send(msg, chat_id)
 
                             sql = "INSERT INTO recentchangesposted (posted_id, post_name) VALUES (%s, %s)"
-                            val = (rc_id, rc_title)
+                            val = (rc_id, rc_title_undecoded)
                             cursor.execute(sql, val)
 
     except Error as e:
