@@ -41,19 +41,15 @@ def send(msg, chat_id, token=my_token):
 '''
 def is_new(type_act, id_act, date): #type of activity, id, date
     if (type_act == 'new_q') or (type_act == 'new_a') or (type_act == 'selected'):
-        if id_act in posted_ids_tg:
-            print('False, posted')
+        time_delta = (datetime.datetime.now() - date).total_seconds()-10800 #3 hours of UTC difference
+        print(time_delta, datetime.datetime.now(), date)
+        if (time_delta < time_sleep) :
+            print('True')
+            return True
+            
+        elif time_delta > time_sleep:
+            print('False, > time_sleep')
             return False
-        else:
-            time_delta = (datetime.datetime.now() - date).total_seconds()-10800 #3 hours of UTC difference
-            print(time_delta, datetime.datetime.now(), date)
-            if (time_delta < time_sleep) :
-                print('True')
-                return True
-
-            elif time_delta > time_sleep:
-                print('False, > time_sleep')
-                return False
 
     else:
         print(f'False, not question or answer')
