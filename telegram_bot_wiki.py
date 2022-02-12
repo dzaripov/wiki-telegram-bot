@@ -115,8 +115,8 @@ def post_if_new_activity_wiki():
                         for chat_id in chat_ids:
                             send(msg, chat_id)
 
-                            sql = "INSERT INTO recentchangesposted (posted_id, post_name) VALUES (%s, %s)"
-                            val = (rc_id, rc_title_undecoded)
+                            sql = "INSERT INTO recentchangesposted (posted_act_id, post_id) VALUES (%s, %s)"
+                            val = (rc_id, rc_cur_id)
                             cursor.execute(sql, val)
 
     except Error as e:
@@ -232,7 +232,7 @@ def create_posted_activity_db():
         ) as connection:
 
             with connection.cursor() as cursor:
-                cursor.execute("CREATE TABLE recentchangesposted (posted_id int, post_name VARCHAR(255))")
+                cursor.execute("CREATE TABLE recentchangesposted (posted_act_id int, post_id int)")
 
         print('DB is created!')
 
