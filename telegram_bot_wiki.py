@@ -109,7 +109,7 @@ def post_if_new_activity_wiki():
                     if is_publishable(rc_minor, rc_new) and is_new_wiki(rc_timestamp):
 
                         get_request_wiki(rc_comment_id, rc_actor)
-                        msg = create_message_wiki(rc_title, summary_comment, author_wiki)
+                        msg = create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id)
 
                         for chat_id in chat_ids:
                             send(msg, chat_id)
