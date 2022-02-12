@@ -200,9 +200,12 @@ def is_db_created():
 
         with connection.cursor() as cursor:
             cursor.execute('SHOW TABLES')
+            
+            tables = cursor.fetchall()
+            print(tables)
 
-        for name in cursor:
-            if name == 'recentchangesposted':
+        for i in range(len(tables)):
+            if tables[i][0] == 'recentchangesposted':
                 return True
                 
         return False
