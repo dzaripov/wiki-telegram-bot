@@ -118,6 +118,7 @@ def post_if_new_activity_wiki():
                             sql = "INSERT INTO recentchangesposted (posted_act_id, post_id) VALUES (%s, %s)"
                             val = (rc_id, rc_cur_id)
                             cursor.execute(sql, val)
+                            connection.commit()
 
     except Error as e:
         print(e)
