@@ -94,7 +94,7 @@ def post_if_new_activity_wiki():
                 else:
                     activity_range = range(len(act))
                 
-                for i in range(activity_range):
+                for i in activity_range:
                     rc_title             = act[i][0].decode('utf-8')
                     rc_minor             = act[i][1]
                     rc_new               = act[i][2]
