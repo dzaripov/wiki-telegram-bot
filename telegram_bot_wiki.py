@@ -27,9 +27,11 @@ def send(msg, chat_id, token=my_token):
 
 ## WIKI
 
-
+''' Get text comment and author name '''
 def get_request_wiki(rc_comment_id, rc_actor):
     global summary_comment, author_wiki
+    
+    '''Connection to MySQL database'''
     try:
         with connect(
             host="localhost",
@@ -37,6 +39,7 @@ def get_request_wiki(rc_comment_id, rc_actor):
             password=mysql_password_wiki,
             database="wikidb",
         ) as connection:
+            '''Getting data from MySQL '''
             query_get_summary_comment = f"select comment_text from comment where comment_id={rc_comment_id};"
             query_get_user_name = f"select actor_name from actor where actor_id={rc_actor};"
             with connection.cursor() as cursor:
@@ -51,14 +54,14 @@ def get_request_wiki(rc_comment_id, rc_actor):
 def create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id):
     return f"Товарищи, новое изменение на вики!\n{create_link(f'https://{sitename}/wiki/?curid={rc_cur_id}',rc_title.replace('_', ' '))}: {bold(summary_comment)} от {bold(author_wiki)}."
 
-
+'''to check whether to publish '''
 def is_publishable(rc_minor, rc_new):
     if rc_minor == 0 and rc_new == 0:
         return True
     else:
         return False
 
-
+'''are lasest changes new on wiki '''
 def is_new_wiki(date): #date
     date_real = datetime.datetime.strptime(str(date), '%Y%m%d%H%M%S')
     time_delta = (datetime.datetime.now() - date_real).total_seconds()-10800 #3 hours of UTC difference
@@ -72,6 +75,7 @@ def is_new_wiki(date): #date
 
 
 def post_if_new_activity_wiki():
+    '''Connection to MySQL database'''
     try:
         with connect(
             host="localhost",
@@ -79,7 +83,7 @@ def post_if_new_activity_wiki():
             password=mysql_password_wiki,
             database="wikidb",
         ) as connection:
-
+            ''' Getting data from MySQL '''
             query_get_activity = "select rc_title, rc_minor, rc_new, rc_comment_id, rc_timestamp, rc_actor, rc_id, rc_cur_id from recentchanges where rc_log_type is NULL"
 
             with connection.cursor() as cursor:
@@ -88,7 +92,8 @@ def post_if_new_activity_wiki():
                 act=cursor.fetchall()
 
                 print('Length of activities (wiki):', len(act))
-
+                
+                '''Check latest 5 recent changes '''
                 if len(act)-5 >= 0:
                     activity_range = range(len(act)-5,len(act))
                 else:
@@ -106,6 +111,7 @@ def post_if_new_activity_wiki():
 
                     print(rc_title, rc_minor, rc_new, rc_comment_id, rc_timestamp, rc_actor, rc_id, rc_cur_id)
                     
+                    '''is there a need to send message in tg'''
                     if is_publishable(rc_minor, rc_new) and is_new_wiki(rc_timestamp):
 
                         get_request_wiki(rc_comment_id, rc_actor)
