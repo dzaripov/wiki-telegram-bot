@@ -13,7 +13,7 @@ CONFIG = {'host': host,
 logging.basicConfig(filename='/var/log/wiki.log', level=logging.INFO,
                     format='%(message)s')
 
-time_sleep = 30  # seconds
+time_sleep = 5  # seconds
 
 
 def bold(text):
