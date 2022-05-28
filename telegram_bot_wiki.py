@@ -54,24 +54,22 @@ def get_request_wiki(rc_comment_id, rc_actor):
 def create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id):
     return f"Товарищи, новое изменение на вики!\n{create_link(f'https://{sitename}/wiki/?curid={rc_cur_id}',rc_title.replace('_', ' '))}: {bold(summary_comment)} от {bold(author_wiki)}."
 
-'''to check whether to publish '''
+''' to check whether to publish '''
 def is_publishable(rc_minor, rc_new):
     if rc_minor == 0 and rc_new == 0:
         return True
-    else:
-        return False
+    return False
 
-'''are lasest changes new on wiki '''
-def is_new_wiki(date): #date
+''' are lasest changes new on wiki '''
+def is_new_wiki(date):
     date_real = datetime.datetime.strptime(str(date), '%Y%m%d%H%M%S')
-    time_delta = (datetime.datetime.now() - date_real).total_seconds()-10800 #3 hours of UTC difference
+    time_delta = (datetime.datetime.now() - date_real).total_seconds() - 10800 #3 hours of UTC difference
     print(time_delta, datetime.datetime.now(), date_real)
     if (time_delta < time_sleep):
         print('True')
         return True
-    elif time_delta > time_sleep:
-        print('False, > time_sleep')
-        return False
+    print('False, > time_sleep')
+    return False
 
 
 def post_if_new_activity_wiki():
