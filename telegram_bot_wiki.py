@@ -50,7 +50,7 @@ def get_request_wiki(rc_comment_id, rc_actor):
 
 
 def create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id):
-    return f"Товарищи, новое изменение на вики!\n \
+    return f"Товарищи, новое изменение на вики!\n\
 {create_link(f'https://{sitename}/wiki/?curid={rc_cur_id}', rc_title.replace('_', ' '))}: \
 {bold(summary_comment)} от {bold(author_wiki)}."
 
@@ -65,8 +65,7 @@ def is_new_wiki(date):
     date_real = datetime.datetime.strptime(str(date), '%Y%m%d%H%M%S')
     # 3 hours of UTC difference
     time_delta = (datetime.datetime.now() - date_real).total_seconds() - 10800
-    logging.info(time_delta, datetime.datetime.now(), date_real)
-
+    logging.info( f'{time_delta}, {datetime.datetime.now()}, {date_real}')
     if (time_delta < time_sleep):
         logging.info('True')
         return True
@@ -104,7 +103,8 @@ def post_if_new_activity_wiki():
         rc_id         = act[i][6]
         rc_cur_id     = act[i][7]
 
-        logging.info(rc_title, rc_minor, rc_new, rc_comment_id, rc_timestamp, rc_actor, rc_id, rc_cur_id)
+        logging.info(f'{rc_title}, {rc_minor}, {rc_new}, {rc_comment_id}, \
+        {rc_timestamp}, {rc_actor}, {rc_id}, {rc_cur_id}')
         if is_publishable(rc_minor, rc_new) and is_new_wiki(rc_timestamp):
             summary_comment, author_wiki = get_request_wiki(rc_comment_id, rc_actor)
             msg = create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id)
@@ -161,7 +161,7 @@ def is_db_created():
         with cnx.cursor(buffered=True) as cursor:
             cursor.execute('SHOW TABLES')
             tables = cursor.fetchall()
-            logging.info(tables)
+            logging.info(f'{tables}')
 
         for i in range(len(tables)):
             if tables[i][0] == 'recentchangesposted':
