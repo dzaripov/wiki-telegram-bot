@@ -1,6 +1,5 @@
 import telegram
 import time
-import datetime
 import logging
 from secret_information import my_token, chat_ids, host, user, password, database, sitename
 from mysql.connector import connect, Error
@@ -61,16 +60,25 @@ def is_publishable(rc_minor, rc_new):
     return False
 
 
-def is_new_wiki(date):
-    date_real = datetime.datetime.strptime(str(date), '%Y%m%d%H%M%S')
-    # 3 hours of UTC difference
-    time_delta = (datetime.datetime.now() - date_real).total_seconds() - 10800
-    logging.info( f'{time_delta}, {datetime.datetime.now()}, {date_real}')
-    if (time_delta < time_sleep):
-        logging.info('True')
-        return True
-    logging.info('False, > time_sleep')
-    return False
+def is_new_wiki(rc_id, length_act=10):
+    query_posted = 'SELECT posted_act_id FROM recentchangesposted'
+    with connect(**CONFIG) as cnx:
+        with cnx.cursor(buffered=True) as cursor:
+            cursor.execute(query_posted)
+            posted = cursor.fetchall()
+
+            if len(posted) >= length_act:
+                posted_range = range(len(posted) - length_act, len(posted))
+            else:
+                posted_range = range(len(posted))
+
+            for i in posted_range:
+                posted_act_id = posted[i][0]
+                if posted_act_id == rc_id:
+                    logging.info('Not new')
+                    return False
+            logging.info('New')
+            return True
 
 
 def get_activity_wiki(length_act=5):
@@ -105,7 +113,7 @@ def post_if_new_activity_wiki():
 
         logging.info(f'{rc_title}, {rc_minor}, {rc_new}, {rc_comment_id}, \
         {rc_timestamp}, {rc_actor}, {rc_id}, {rc_cur_id}')
-        if is_publishable(rc_minor, rc_new) and is_new_wiki(rc_timestamp):
+        if is_publishable(rc_minor, rc_new) and is_new_wiki(rc_id):
             summary_comment, author_wiki = get_request_wiki(rc_comment_id, rc_actor)
             msg = create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id)
 
