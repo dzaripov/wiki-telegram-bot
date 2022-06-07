@@ -20,6 +20,7 @@ def bold(text):
     return '<b>' + text + '</b>'
 
 
+''' telegram hyperlink creation'''
 def create_link(link, title):
     return f'<a href="{link}">{title}</a>'
 
@@ -33,6 +34,7 @@ def send(msg, chat_id, token=my_token):
     bot.sendMessage(chat_id=chat_id, text=msg, parse_mode='HTML')
 
 
+''' get summary comment and author of change''' 
 def get_request_wiki(rc_comment_id, rc_actor):
     query_get_summary_comment = f"SELECT comment_text FROM comment \
                                   WHERE comment_id={rc_comment_id}"
@@ -52,6 +54,7 @@ def create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id):
     return f"Товарищи, новое изменение на вики!\n\
 {create_link(f'https://{sitename}/wiki/?curid={rc_cur_id}', rc_title.replace('_', ' '))}: \
 {bold(summary_comment)} от {bold(author_wiki)}."
+
 
 ''' to check whether to publish '''
 def is_publishable(rc_minor, rc_new):
