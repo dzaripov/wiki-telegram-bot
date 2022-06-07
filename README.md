@@ -41,4 +41,5 @@ Create file /etc/systemd/system/telegram-bot-wiki.service with content like this
 ```
 And then enable bot: `systemctl enable --now /etc/systemd/system/telegram-bot-wiki.service`
 
-
+## Other
+Bot won't notify a minor change or a creation of new page. 
