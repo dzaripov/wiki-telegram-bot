@@ -16,7 +16,7 @@ user - name of MySQL wiki user \
 database - name of MySQL wiki database \
 password - password of MySQL wiki database\
 sitename - domain name of site
-
+time_sleep - time between checks for new changes in seconds
 
 After editing, you need to setup bot.
 

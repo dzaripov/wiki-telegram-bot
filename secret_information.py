@@ -5,3 +5,4 @@ user = 'user' # Name of MySQL wiki user
 database = 'wikidb' # Name of MySQL wiki database
 password = 'password' # Password of MySQL wiki database
 sitename = 'example.com' # Domain name of site
+time_sleep = 5 # Time between checks for new changes in seconds

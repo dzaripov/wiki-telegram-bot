@@ -1,7 +1,7 @@
 import telegram
 import time
 import logging
-from secret_information import my_token, chat_ids, host, user, password, database, sitename
+from secret_information import my_token, chat_ids, host, user, password, database, sitename, time_sleep
 from mysql.connector import connect, Error
 
 
@@ -10,84 +10,68 @@ CONFIG = {'host': host,
           'password': password,
           'database': database}
 
-logging.basicConfig(filename='/var/log/wiki.log', level=logging.INFO,
+logging.basicConfig(filename='/var/log/wiki.log', 
+                    level=logging.INFO,
                     format='%(message)s')
-
-time_sleep = 5  # seconds
 
 
 def bold(text):
+    """
+    Transfroms text to bold
+    """
     return '<b>' + text + '</b>'
 
 
-''' telegram hyperlink creation'''
 def create_link(link, title):
+    """
+    Telegram hyperlink creation
+    """
     return f'<a href="{link}">{title}</a>'
 
 
 def send(msg, chat_id, token=my_token):
     """
-    Send a message to a telegram user or group specified on chatId
+    Sends a message to a telegram user or group specified on chatId
     chat_id must be a number!
     """
     bot = telegram.Bot(token=token)
     bot.sendMessage(chat_id=chat_id, text=msg, parse_mode='HTML')
 
 
-''' get summary comment and author of change''' 
-def get_request_wiki(rc_comment_id, rc_actor):
-    query_get_summary_comment = f"SELECT comment_text FROM comment \
-                                  WHERE comment_id={rc_comment_id}"
-    query_get_user_name = f"SELECT actor_name FROM actor \
-                            WHERE actor_id={rc_actor}"
-
-    with connect(**CONFIG) as cnx:
-        with cnx.cursor(buffered=True) as cursor:
-            cursor.execute(query_get_summary_comment)
-            summary_comment = cursor.fetchall()[0][0].decode('utf-8')
-            cursor.execute(query_get_user_name)
-            author_wiki = cursor.fetchall()[0][0].decode('utf-8')
-    return summary_comment, author_wiki
-
-
 def create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id):
+    """
+    Creates a message to be sent to a telegram group or a user
+    """
+    title = rc_title.replace('_', ' ')
+    link = f'https://{sitename}/wiki/?curid={rc_cur_id}'
+    telegram_link = create_link(link, title)
     return f"Товарищи, новое изменение на вики!\n\
-{create_link(f'https://{sitename}/wiki/?curid={rc_cur_id}', rc_title.replace('_', ' '))}: \
-{bold(summary_comment)} от {bold(author_wiki)}."
-
-
-''' to check whether to publish '''
-def is_publishable(rc_minor, rc_new):
-    if rc_minor == 0 and rc_new == 0:
-        return True
-    return False
-
-
-def is_new_wiki(rc_id, length_act=10):
-    query_posted = 'SELECT posted_act_id FROM recentchangesposted'
-    with connect(**CONFIG) as cnx:
-        with cnx.cursor(buffered=True) as cursor:
-            cursor.execute(query_posted)
-            posted = cursor.fetchall()
-
-            if len(posted) >= length_act:
-                posted_range = range(len(posted) - length_act, len(posted))
-            else:
-                posted_range = range(len(posted))
-
-            for i in posted_range:
-                posted_act_id = posted[i][0]
-                if posted_act_id == rc_id:
-                    logging.info('Not new')
-                    return False
-            logging.info('New')
-            return True
+{telegram_link}:{bold(summary_comment)} от {bold(author_wiki)}."
 
 
 def get_activity_wiki(length_act=5):
-    query_get_activity = "SELECT rc_title, rc_minor, rc_new, rc_comment_id, \
-                          rc_timestamp, rc_actor, rc_id, rc_cur_id \
-                          FROM recentchanges WHERE rc_log_type is NULL"
+    """
+    Get recent changes from wiki that dont minor (or page creation) and not posted earlier.
+    Get title, timestamp, id of change, id of page that contain change,
+    summary of change, name of author.
+    Return list of tuples.
+    """
+    query_get_activity = f"""
+    SELECT
+        rc_title, 
+        rc_timestamp, 
+        rc_id,
+        rc_cur_id,
+        comment_text,
+        actor_name
+     FROM recentchanges
+     LEFT JOIN comment ON rc_comment_id = comment_id
+     LEFT JOIN actor ON rc_actor = actor_id
+     WHERE rc_log_type is NULL and
+           rc_id NOT IN (SELECT posted_act_id 
+                     FROM recentchangesposted) and
+           rc_new = 0 and
+           rc_minor = 0"""
 
     with connect(**CONFIG) as cnx:
         with cnx.cursor(buffered=True) as cursor:
@@ -103,68 +87,31 @@ def get_activity_wiki(length_act=5):
 
 
 def post_if_new_activity_wiki():
+    """
+    Parses SQL query and sends a message if new activity is found.
+    Adds information about posted change in database.
+    """
     act, activity_range = get_activity_wiki()
     for i in activity_range:
-        rc_title      = act[i][0].decode('utf-8')
-        rc_minor      = act[i][1]
-        rc_new        = act[i][2]
-        rc_comment_id = act[i][3]
-        rc_timestamp  = act[i][4].decode('utf-8')
-        rc_actor      = act[i][5]
-        rc_id         = act[i][6]
-        rc_cur_id     = act[i][7]
+        rc_title        = act[i][0].decode('utf-8')
+        rc_timestamp    = act[i][1].decode('utf-8')
+        rc_id           = act[i][2]
+        rc_cur_id       = act[i][3]
+        summary_comment = act[i][4].decode('utf-8')
+        author_wiki     = act[i][5].decode('utf-8')
 
-        logging.info(f'{rc_title}, {rc_minor}, {rc_new}, {rc_comment_id}, \
-        {rc_timestamp}, {rc_actor}, {rc_id}, {rc_cur_id}')
-        if is_publishable(rc_minor, rc_new) and is_new_wiki(rc_id):
-            summary_comment, author_wiki = get_request_wiki(rc_comment_id, rc_actor)
-            msg = create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id)
-
-            for chat_id in chat_ids:
-                send(msg, chat_id)
-
-            with connect(**CONFIG) as cnx:
-                with cnx.cursor(buffered=True) as cursor:
-                    sql = "INSERT INTO recentchangesposted\
-                    (posted_act_id, post_id) VALUES (%s, %s)"
-                    val = (rc_id, rc_cur_id)
-                    cursor.execute(sql, val)
-                    cnx.commit()
-
-
-def manual_post(rc_id_manual):
-    act, activity_range = get_activity_wiki()
-    for i in activity_range:
-        rc_title      = act[i][0].decode('utf-8')
-        rc_minor      = act[i][1]
-        rc_new        = act[i][2]
-        rc_comment_id = act[i][3]
-        rc_timestamp  = act[i][4].decode('utf-8')
-        rc_actor      = act[i][5]
-        rc_id         = act[i][6]
-        rc_cur_id     = act[i][7]
-
-        if (rc_id == rc_id_manual):
-            summary_comment, author_wiki = get_request_wiki(rc_comment_id, rc_actor)
-            msg = create_message_wiki(rc_title, summary_comment, author_wiki)
-            for chat_id in chat_ids:
-                send(msg, chat_id)
-            print(f'Posted! {msg}')
-
-
-def get_activities(length_act=100):
-    act, activity_range = get_activity_wiki(length_act)
-    for i in activity_range:
-        rc_title      = act[i][0].decode('utf-8')
-        rc_minor      = act[i][1]
-        rc_new        = act[i][2]
-        rc_comment_id = act[i][3]
-        rc_timestamp  = act[i][4].decode('utf-8')
-        rc_actor      = act[i][5]
-        rc_id         = act[i][6]
-        rc_cur_id     = act[i][7]
-
-        print(rc_title, rc_minor, rc_new, rc_comment_id, rc_timestamp, rc_actor, rc_id, rc_cur_id)
+        logging.info(f'{rc_title}, {rc_timestamp}, {rc_id}, \
+                       {rc_cur_id}, {summary_comment}, {author_wiki}')
+        msg = create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id)
+        for chat_id in chat_ids:
+            send(msg, chat_id)
+        with connect(**CONFIG) as cnx:
+            with cnx.cursor(buffered=True) as cursor:
+                sql = "INSERT INTO recentchangesposted\
+                (posted_act_id, post_id) VALUES (%s, %s)"
+                val = (rc_id, rc_cur_id)
+                cursor.execute(sql, val)
+                cnx.commit()
 
 
 def is_db_created():
@@ -182,12 +129,13 @@ def is_db_created():
 
 
 def create_posted_activity_db():
-    sql_create_table = 'CREATE TABLE recentchangesposted (posted_act_id int, post_id int)'
     if is_db_created():
         logging.info('DB is already created!')
     else:
         with connect(**CONFIG) as cnx:
             with cnx.cursor(buffered=True) as cursor:
+                sql_create_table = 'CREATE TABLE recentchangesposted\
+                                    (posted_act_id int, post_id int)'
                 cursor.execute(sql_create_table)
         logging.info('DB is created!')
 
@@ -202,4 +150,9 @@ def main():
 
 
 if __name__ == '__main__':
+    # Wait for database initialization
+    time.sleep(60)
+    # Create recentchangesposted table if not exists 
+    create_posted_activity_db()
+
     main()
