@@ -1,5 +1,5 @@
 my_token = '0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' # Telegram bot token. See more: @botfather
-chat_ids = ['-10000', '-200000000'] # Chat ids in which notificatins will be sended
+chat_ids = ['-10000', '-200000000'] # Chat ids in which notifications will be sent
 host = 'localhost' # Host of MySQL wiki database
 user = 'user' # Name of MySQL wiki user
 database = 'wikidb' # Name of MySQL wiki database
