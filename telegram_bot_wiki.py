@@ -46,7 +46,7 @@ def create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id):
     link = f'https://{sitename}/wiki/?curid={rc_cur_id}'
     telegram_link = create_link(link, title)
     return f"Товарищи, новое изменение на вики!\n\
-{telegram_link}:{bold(summary_comment)} от {bold(author_wiki)}."
+{telegram_link}: {bold(summary_comment)} от {bold(author_wiki)}."
 
 
 def get_activity_wiki(length_act=5):
