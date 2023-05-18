@@ -1,6 +1,8 @@
 my_token = '0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' # Telegram bot token. See more: @botfather
 chat_ids = ['-10000', '-200000000'] # Chat ids in which notifications will be sent
+chat_ids_internal = [] # Chat ids in which logging notifications will be sent
 host = 'localhost' # Host of MySQL wiki database
+port = '3306' # Port of MySQL wiki database
 user = 'user' # Name of MySQL wiki user
 database = 'wikidb' # Name of MySQL wiki database
 password = 'password' # Password of MySQL wiki database
