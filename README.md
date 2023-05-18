@@ -12,7 +12,9 @@ You need to copy this repo: `git clone https://github.com/dzaripov/wiki-telegram
 Then edit secret_information.py: \
 my_token - Telegram Bot token that you can get from @BotFather \
 chat_ids - Telegram chat ids in which bot works. Can be single chat id or muptiple. Chat id can be acquired using @RawDataBot \
+chat_ids_internal - Telegram chad ids in which bot sends logging information (and minor changes or page creation) \ 
 host - hostname of MySQL wiki database \
+port - port of MySQL wiki database \
 user - name of MySQL wiki user \
 database - name of MySQL wiki database \
 password - password of MySQL wiki database\
