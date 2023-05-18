@@ -1,15 +1,14 @@
 import telegram
 import time
 import logging
-from secret_information import (my_token, chat_ids, host, user, 
-                                password, database, sitename, time_sleep)
-from mysql.connector import connect, Error
+from secret_information import (my_token, chat_ids, chat_ids_internal, host, port, 
+                                user, password, database, sitename, time_sleep)
+import sqlalchemy
+from sqlalchemy import select, and_, not_, insert, Table, Column, Integer
 
 
-CONFIG = {'host': host,
-          'user': user,
-          'password': password,
-          'database': database}
+engine = sqlalchemy.create_engine(f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}")
+metadata = sqlalchemy.MetaData(engine)
 
 logging.basicConfig(filename='/var/log/wiki.log', 
                     level=logging.INFO,
@@ -71,12 +70,35 @@ def create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id):
     """
     title = rc_title.replace('_', ' ')
     link = f'https://{sitename}/wiki/?curid={rc_cur_id}'
-    telegram_link = create_link(link, title)
-    return f"Товарищи, новое изменение на вики!\n\
-{telegram_link}: {bold(summary_comment)} от {bold(author_wiki)}."
+    telegram_hyperlink = create_link(link, title)
+    response = "Товарищи, новое изменение на вики!\n{}: {} от {}.".format(
+        telegram_hyperlink, bold(summary_comment), bold(author_wiki))
+    return response
 
 
-def get_activity_wiki(length_act=5):
+def create_message_wiki_internal(log_type, log_action, log_title, log_page, log_params, comment_text, actor_name):
+    """
+    Creates a message to be sent to internal a Telegram group or user.
+
+    Args:
+        rc_title (str): The title of the wiki page that was changed
+        summary_comment (str): A summary of the changes made to the page
+        author_wiki (str): The username of the person who made the changes
+        rc_cur_id (int): The current revision ID of the page (ID of the change)
+
+    Returns:
+        str: The message to send
+    """
+    title = log_title.replace('_', ' ')
+    link = f'https://{sitename}/wiki/?curid={log_page}'
+    telegram_hyperlink = create_link(link, title)
+    response = "Новое изменение на вики!\n{}: {} от {}. {}: {}. Params: {}".format(
+        telegram_hyperlink, bold(comment_text), bold(actor_name), 
+        log_type, log_action, log_params)
+    return response
+
+
+def get_activity_wiki():
     """
     Gets recent changes from the wiki that aren't minor 
     (or page creation) and haven't been posted earlier.
@@ -92,35 +114,61 @@ def get_activity_wiki(length_act=5):
         tuple: A tuple containing the list of recent changes 
         and the range of recent changes to process.
     """
+    recentchanges = Table("recentchanges", metadata, autoload=True, autoload_with=engine)
+    comment = Table("comment", metadata, autoload=True, autoload_with=engine)
+    actor = Table("actor", metadata, autoload=True, autoload_with=engine)
+    recentchangesposted = Table("recentchangesposted", metadata, autoload=True, autoload_with=engine)
+    logging_table = Table("logging", metadata, autoload=True, autoload_with=engine)
+    loggingposted = Table("loggingposted", metadata, autoload=True, autoload_with=engine)
+    
+    query_get_activity = (
+        select(
+            recentchanges.c.rc_title,
+            recentchanges.c.rc_timestamp,
+            recentchanges.c.rc_id,
+            recentchanges.c.rc_cur_id,
+            recentchanges.c.rc_new,
+            recentchanges.c.rc_minor,
+            comment.c.comment_text,
+            actor.c.actor_name
+        )
+        .select_from(recentchanges)
+        .join(comment, recentchanges.c.rc_comment_id == comment.c.comment_id)
+        .join(actor, recentchanges.c.rc_actor == actor.c.actor_id)
+        .where(
+            and_(
+                recentchanges.c.rc_log_type.is_(None),
+                ~recentchanges.c.rc_id.in_(
+                    select(recentchangesposted.c.posted_act_id)
+                ),
 
-    query_get_activity = f"""
-        SELECT
-            rc_title, 
-            rc_timestamp, 
-            rc_id,
-            rc_cur_id,
-            comment_text,
-            actor_name
-         FROM recentchanges
-         LEFT JOIN comment ON rc_comment_id = comment_id
-         LEFT JOIN actor ON rc_actor = actor_id
-         WHERE rc_log_type is NULL and
-               rc_id NOT IN (SELECT posted_act_id 
-                         FROM recentchangesposted) and
-               rc_new = 0 and
-               rc_minor = 0"""
-
-    with connect(**CONFIG) as cnx:
-        with cnx.cursor(buffered=True) as cursor:
-            cursor.execute(query_get_activity)
-            act = cursor.fetchall()
-
-            if len(act) >= length_act:
-                activity_range = range(len(act) - length_act, len(act))
-            else:
-                activity_range = range(len(act))
-
-    return act, activity_range
+                )
+            )
+        )
+    
+    query_get_logging_activity = (
+        select(
+            logging_table.c.log_id,
+            logging_table.c.log_type,
+            logging_table.c.log_action,
+            logging_table.c.log_title,
+            logging_table.c.log_page,
+            logging_table.c.log_params,
+            comment.c.comment_text,
+            actor.c.actor_name
+        )
+        .select_from(logging_table)
+        .join(comment, logging_table.c.log_comment_id == comment.c.comment_id)
+        .join(actor, logging_table.c.log_actor == actor.c.actor_id)
+        .where(
+                not_(logging_table.c.log_id.in_(select(loggingposted.c.posted_act_id)))
+        )
+    )
+    
+    with engine.connect() as connection:
+        act_main = connection.execute(query_get_activity).all()
+        act_internal = connection.execute(query_get_logging_activity).all()
+    return act_main, act_internal
 
 
 def post_if_new_activity_wiki():
@@ -128,62 +176,82 @@ def post_if_new_activity_wiki():
     Parses SQL query and sends a message if new activity is found.
     Adds information about posted change in database.
     """
-    act, activity_range = get_activity_wiki()
-    for i in activity_range:
-        rc_title        = act[i][0].decode('utf-8')
-        rc_timestamp    = act[i][1].decode('utf-8')
-        rc_id           = act[i][2]
-        rc_cur_id       = act[i][3]
-        summary_comment = act[i][4].decode('utf-8')
-        author_wiki     = act[i][5].decode('utf-8')
+    act_main, act_internal = get_activity_wiki()
+    for i in range(len(act_main)):
+        rc_title        = act_main[i][0].decode('utf-8')
+        rc_timestamp    = act_main[i][1].decode('utf-8')
+        rc_id           = act_main[i][2]
+        rc_cur_id       = act_main[i][3]
+        rc_new          = act_main[i][4]
+        rc_minor        = act_main[i][5]
+        comment_text    = act_main[i][6].decode('utf-8')
+        actor_name      = act_main[i][7].decode('utf-8')
 
         logging.info(f'{rc_title}, {rc_timestamp}, {rc_id}, \
-                       {rc_cur_id}, {summary_comment}, {author_wiki}')
-        msg = create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id)
-        for chat_id in chat_ids:
+                    {rc_cur_id}, {comment_text}, {actor_name}')
+
+        msg = create_message_wiki(rc_title, comment_text, actor_name, rc_cur_id)
+
+        if (rc_new == 0) and (rc_minor == 0):
+            for chat_id in chat_ids:
+                send(msg, chat_id)
+        else:
+            for chat_id in chat_ids_internal:
+                send(msg, chat_id)
+        
+
+        with engine.begin() as connection:
+            recentchangesposted = Table("recentchangesposted", metadata, autoload=True, autoload_with=engine)
+            insert_statement_rc = recentchangesposted.insert().values(posted_act_id=rc_id, post_id=rc_cur_id)
+            connection.execute(insert_statement_rc)
+
+    for i in range(len(act_internal)):
+        log_id          = act_internal[i][0]
+        log_type        = act_internal[i][1].decode('utf-8')
+        log_action      = act_internal[i][2].decode('utf-8')
+        log_title       = act_internal[i][3].decode('utf-8')
+        log_page        = act_internal[i][4]
+        log_params      = act_internal[i][5].decode('utf-8')
+        comment_text    = act_internal[i][6].decode('utf-8')
+        actor_name      = act_internal[i][7].decode('utf-8')
+
+        logging.info(f'{log_id}, {log_type}, {log_action}, {log_title}, \
+                     {log_page}, {log_params}, {comment_text}, {actor_name}')
+        
+        msg = create_message_wiki_internal(log_type, log_action, log_title, log_page,
+                                           log_params, comment_text, actor_name)
+        
+        for chat_id in chat_ids_internal:
             send(msg, chat_id)
-        with connect(**CONFIG) as cnx:
-            with cnx.cursor(buffered=True) as cursor:
-                sql = "INSERT INTO recentchangesposted\
-                (posted_act_id, post_id) VALUES (%s, %s)"
-                val = (rc_id, rc_cur_id)
-                cursor.execute(sql, val)
-                cnx.commit()
 
-
-def is_db_created():
-    """
-    Checks if the recentchangesposted table exists in the database.
-
-    Returns:
-    bool: True if the table exists, False otherwise.
-    """
-    with connect(**CONFIG) as cnx:
-        with cnx.cursor(buffered=True) as cursor:
-            cursor.execute('SHOW TABLES')
-            tables = cursor.fetchall()
-            logging.info(f'{tables}')
-
-        for i in range(len(tables)):
-            if tables[i][0] == 'recentchangesposted':
-                return True
-
-        return False
+        with engine.begin() as connection:
+            loggingposted = Table("loggingposted", metadata, autoload=True, autoload_with=engine)
+            insert_statement_log = loggingposted.insert().values(posted_act_id=log_id, post_id=log_page)
+            connection.execute(insert_statement_log)
 
 
 def create_posted_activity_db():
     """
-    Creates the recentchangesposted table in the database 
-    if it does not already exist.
+    Creates the recentchangesposted and loggingposted table in the database 
+    if they do not already exist.
     """
-    if is_db_created():
+    recentchangesposted = Table(
+        'recentchangesposted',
+        metadata,
+        Column('posted_act_id', Integer),
+        Column('post_id', Integer)
+    )
+    loggingposted = Table(
+        'loggingposted',
+        metadata,
+        Column('posted_act_id', Integer),
+        Column('post_id', Integer)
+    )
+
+    if recentchangesposted.exists(bind=engine) and loggingposted.exists(bind=engine):
         logging.info('DB is already created!')
     else:
-        with connect(**CONFIG) as cnx:
-            with cnx.cursor(buffered=True) as cursor:
-                sql_create_table = 'CREATE TABLE recentchangesposted\
-                                    (posted_act_id int, post_id int)'
-                cursor.execute(sql_create_table)
+        metadata.create_all(bind=engine)
         logging.info('DB is created!')
 
 
@@ -192,18 +260,23 @@ def main():
     The main function of the program that runs the 
     function in a loop every time_sleep number of seconds.
     """
-    try:
-        while True:
-            post_if_new_activity_wiki()
+    while True:
+        try:
             time.sleep(time_sleep)
-    except Error as e:
-        logging.info(e)
+            post_if_new_activity_wiki()
+        except Exception as e:
+            logging.info(e)
+            for chat_id in chat_ids_internal:
+                send("wiki-telegram bot is down. " + e, chat_id)
+            raise SystemExit
+            
+
 
 
 if __name__ == '__main__':
     # Wait for database initialization
-    time.sleep(60)
-    # Create recentchangesposted table if not exists 
+    time.sleep(1)
+    # Create recentchangesposted/loggingposted table if not exists 
     create_posted_activity_db()
 
     main()
