@@ -275,7 +275,7 @@ def main():
 
 if __name__ == '__main__':
     # Wait for database initialization
-    time.sleep(1)
+    time.sleep(60)
     # Create recentchangesposted/loggingposted table if not exists 
     create_posted_activity_db()
 
