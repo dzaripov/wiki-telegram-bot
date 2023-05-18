@@ -1,4 +1,4 @@
-# Wiki-telegram-bot
+# MediaWiki change notifyer in telegram
 A telegram bot to notify changes of private wikis. This telegram bot sends message, when new change on private wiki appears.
 ![image](https://user-images.githubusercontent.com/15835291/235373926-59a6d8ed-0e5a-49af-bbf2-1c7e8e78ce37.png)
 ## Prerequisites
