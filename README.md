@@ -5,7 +5,7 @@ A telegram bot to notify changes of private wikis. This telegram bot sends messa
 * Linux
 * MySQL database for wiki
 * python3 (this bot was tested on python3.8)
-* mysql-connector-python and python-telegram-bot modules
+* SQLAlchemy and DPAPI (PyMySQL) and python-telegram-bot modules
 ## Installation & Configuration
 You need to copy this repo: `git clone https://github.com/dzaripov/wiki-telegram-bot.git`
 
