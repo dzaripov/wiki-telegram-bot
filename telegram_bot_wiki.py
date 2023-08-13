@@ -55,7 +55,7 @@ def send(msg, chat_id, token=my_token):
     bot.sendMessage(chat_id=chat_id, text=msg, parse_mode='HTML')
 
 
-def create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id):
+def create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id, rc_this_oldid):
     """
     Creates a message to be sent to a Telegram group or user
 
@@ -63,16 +63,20 @@ def create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id):
         rc_title (str): The title of the wiki page that was changed
         summary_comment (str): A summary of the changes made to the page
         author_wiki (str): The username of the person who made the changes
-        rc_cur_id (int): The current revision ID of the page (ID of the change)
+        rc_cur_id (int): The current ID of the page
+        rc_this_oldid (int): The current ID of the page revision (used in diff)
 
     Returns:
         str: The message to send
     """
     title = rc_title.replace('_', ' ')
-    link = f'https://{sitename}/wiki/?curid={rc_cur_id}'
-    telegram_hyperlink = create_link(link, title)
-    response = "Товарищи, новое изменение на вики!\n{}: {} от {}.".format(
-        telegram_hyperlink, bold(summary_comment), bold(author_wiki))
+    site_link = f'https://{sitename}/wiki/?curid={rc_cur_id}'
+    site_hyperlink = create_link(site_link, title)
+
+    change_link = f'https://{sitename}/wiki/?diff={rc_this_oldid}'
+    change_hyperlink = create_link(change_link, "Изменение")
+    response = "Товарищи, новое изменение на вики!\n{}: {} от {}. {}".format(
+        site_hyperlink, bold(summary_comment), bold(author_wiki), change_hyperlink)
     return response
 
 
@@ -104,7 +108,8 @@ def get_activity_wiki():
     (or page creation) and haven't been posted earlier.
     Returns a list of tuples containing the title, timestamp, 
     ID of the change, ID of the page that contains the change,
-    summary of the change, and name of the author.
+    revision ID of the page, summary of the change, 
+    and name of the author.
 
     Args:
         length_act (int, optional): The number of recent changes to get. 
@@ -127,6 +132,7 @@ def get_activity_wiki():
             recentchanges.c.rc_timestamp,
             recentchanges.c.rc_id,
             recentchanges.c.rc_cur_id,
+            recentchanges.c.rc_this_oldid,
             recentchanges.c.rc_new,
             recentchanges.c.rc_minor,
             comment.c.comment_text,
@@ -182,15 +188,17 @@ def post_if_new_activity_wiki():
         rc_timestamp    = act_main[i][1].decode('utf-8')
         rc_id           = act_main[i][2]
         rc_cur_id       = act_main[i][3]
-        rc_new          = act_main[i][4]
-        rc_minor        = act_main[i][5]
-        comment_text    = act_main[i][6].decode('utf-8')
-        actor_name      = act_main[i][7].decode('utf-8')
+        rc_this_oldid   = act_main[i][4]
+        rc_new          = act_main[i][5]
+        rc_minor        = act_main[i][6]
+        comment_text    = act_main[i][7].decode('utf-8')
+        actor_name      = act_main[i][8].decode('utf-8')
 
-        logging.info(f'{rc_title}, {rc_timestamp}, {rc_id}, \
-                    {rc_cur_id}, {comment_text}, {actor_name}')
+        logging.info(f'{rc_title}, {rc_timestamp}, {rc_id}, {rc_cur_id}, \
+                     {rc_this_oldid}, {comment_text}, {actor_name}')
 
-        msg = create_message_wiki(rc_title, comment_text, actor_name, rc_cur_id)
+        msg = create_message_wiki(rc_title, comment_text, actor_name, 
+                                  rc_cur_id, rc_this_oldid)
 
         if (rc_new == 0) and (rc_minor == 0):
             for chat_id in chat_ids:
