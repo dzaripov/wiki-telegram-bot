@@ -5,6 +5,7 @@ from secret_information import (my_token, chat_ids, chat_ids_internal, host, por
                                 user, password, database, sitename, time_sleep)
 import sqlalchemy
 from sqlalchemy import select, and_, not_, insert, Table, Column, Integer
+import re
 
 
 engine = sqlalchemy.create_engine(f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}")
@@ -41,6 +42,19 @@ def create_link(link, title):
     """
     return f'<a href="{link}">{title}</a>'
 
+def delete_tags(text:str) -> str:
+    """
+    Deletes HTML tags from the given text.
+
+    Parameters:
+        text (str): The text containing HTML tags.
+
+    Returns:
+        str: The text with HTML tags removed.
+    """
+    tag_re = re.compile(r'<[^>]+>')
+    return tag_re.sub('', text)
+
 
 def send(msg, chat_id, token=my_token):
     """
@@ -76,7 +90,7 @@ def create_message_wiki(rc_title, summary_comment, author_wiki, rc_cur_id, rc_th
     change_link = f'https://{sitename}/wiki/?diff={rc_this_oldid}'
     change_hyperlink = create_link(change_link, "Изменение")
     response = "Товарищи, новое изменение на вики!\n{}: {} от {}. {}".format(
-        site_hyperlink, bold(summary_comment), bold(author_wiki), change_hyperlink)
+        site_hyperlink, bold(delete_tags(summary_comment)), bold(author_wiki), change_hyperlink)
     return response
 
 
@@ -97,7 +111,7 @@ def create_message_wiki_internal(log_type, log_action, log_title, log_page, log_
     link = f'https://{sitename}/wiki/?curid={log_page}'
     telegram_hyperlink = create_link(link, title)
     response = "Новое изменение на вики!\n{}: {} от {}. {}: {}. Params: {}".format(
-        telegram_hyperlink, bold(comment_text), bold(actor_name), 
+        telegram_hyperlink, bold(delete_tags(comment_text)), bold(actor_name), 
         log_type, log_action, log_params)
     return response
 
